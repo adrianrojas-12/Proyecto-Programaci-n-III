@@ -2,7 +2,7 @@
 
 ## Integrantes 
 * Adrian Rojas Tejada
-* Nombre y Apellidos
+* Cristobal Javier Aranda Gallardo
 * Nombre y Apellidos
 * Nombre y Apellidos
 * Nombre y Apellidos
