@@ -5,7 +5,7 @@
 * Cristobal Javier Aranda Gallardo
 * Walter Sebastián Aquino Pachas
 * Adrian Gabriel Rojas Tejada
-* Nombre y Apellidos
+* Evans Valentino Solis Mendoza
 
 
 ## Construcción del Suffix Trie (Inserción)
