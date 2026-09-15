@@ -3,6 +3,6 @@
 ## Integrantes 
 * Adrian Rojas Tejada
 * Cristobal Javier Aranda Gallardo
-* Nombre y Apellidos
+* Walter Sebastián Aquino Pachas
 * Nombre y Apellidos
 * Nombre y Apellidos
