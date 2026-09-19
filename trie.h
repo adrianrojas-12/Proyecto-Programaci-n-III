@@ -9,8 +9,8 @@
 using namespace std;
 
 struct NodoTrie {
-    // 36 hijos: a-z (0-25) y 0-9 (26-35)
-    NodoTrie* hijos[36] = {nullptr};
+    // Dinámico: solo ocupa memoria para los hijos que realmente existen
+    unordered_map<char, NodoTrie*> hijos;
 
     bool esFinDePalabra = false;
 
@@ -18,8 +18,8 @@ struct NodoTrie {
     unordered_map<int, int> frecuencias;
 
     ~NodoTrie() {
-        for (int i = 0; i < 36; ++i) {
-            delete hijos[i];
+        for (auto& par : hijos) {
+            delete par.second;
         }
     }
 };
@@ -27,13 +27,13 @@ struct NodoTrie {
 class SuffixTrie {
 private:
     NodoTrie* raiz;
-    int largoMinimoSufijo; // Evita explotar la memoria RAM
+    int largoMinimoSufijo; // Optimización de volumen de datos
 
-    int obtenerIndice(char c) const;
     void insertarSufijo(NodoTrie* nodo, const string& sufijo, int idPelicula);
 
 public:
-    SuffixTrie(int minSufijoLen = 2);
+    // Por defecto se filtran sufijos menores a 3 letras
+    SuffixTrie(int minSufijoLen = 3);
     ~SuffixTrie();
 
     void insertarPalabra(const string& palabra, int idPelicula);

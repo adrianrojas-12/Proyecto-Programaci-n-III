@@ -8,6 +8,7 @@
 * Evans Valentino Solis Mendoza
 
 
+
 ## Construcción del Suffix Trie (Inserción)
 
 Se diseñó e implementó un **Suffix Trie** para habilitar la búsqueda por sub-palabras de forma eficiente, limitando la inserción por tokens para optimizar el consumo de memoria del dataset.
@@ -21,7 +22,7 @@ Estructura NodoTrie:
 
 Clase SuffixTrie:
     Raiz: NodoTrie
-    LargoMinimo-> Entero = 2
+    LargoMinimo: Entero = 2
 
     Función construirIndice(peliculas):
         Para cada peli en peliculas:
