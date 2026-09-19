@@ -9,12 +9,8 @@
 using namespace std;
 
 struct NodoTrie {
-    // Dinámico: solo ocupa memoria para los hijos que realmente existen
     unordered_map<char, NodoTrie*> hijos;
-
     bool esFinDePalabra = false;
-
-    // id -> frecuencia de apariciones en esa película
     unordered_map<int, int> frecuencias;
 
     ~NodoTrie() {
@@ -27,19 +23,22 @@ struct NodoTrie {
 class SuffixTrie {
 private:
     NodoTrie* raiz;
-    int largoMinimoSufijo; // Optimización de volumen de datos
+    int largoMinimoSufijo;
 
     void insertarSufijo(NodoTrie* nodo, const string& sufijo, int idPelicula);
 
 public:
-    // Por defecto se filtran sufijos menores a 3 letras
     SuffixTrie(int minSufijoLen = 3);
     ~SuffixTrie();
 
     void insertarPalabra(const string& palabra, int idPelicula);
     void construirIndice(const vector<Pelicula>& peliculas);
+
     NodoTrie* navegarPrefijo(const string& prefijo) const;
-    void recolectarCoincidencias(NodoTrie* nodo, unordered_map<int, int>& acumulado) const;
+
+    // Método que requiere buscador.cpp para recolectar frecuencias recursivamente
+    void recolectarCoincidencias(NodoTrie* nodo, unordered_map<int, int>& coincidencias) const;
+
     NodoTrie* getRaiz() const { return raiz; }
 };
 
