@@ -38,6 +38,34 @@ void SuffixTrie::insertarPalabra(const string& palabra, int idPelicula) {
     }
 }
 
+NodoTrie* SuffixTrie::navegarPrefijo(const string& prefijo) const {
+    NodoTrie* actual = raiz;
+    for (char c : prefijo) {
+        int idx = obtenerIndice(c);
+        if (idx == -1 || actual->hijos[idx] == nullptr) {
+            return nullptr;
+        }
+        actual = actual->hijos[idx];
+    }
+    return actual;
+}
+
+void SuffixTrie::recolectarCoincidencias(NodoTrie* nodo, unordered_map<int, int>& acumulado) const {
+    if (nodo == nullptr) return;
+
+    if (nodo->esFinDePalabra) {
+        for (const auto& par : nodo->frecuencias) {
+            acumulado[par.first] += par.second;
+        }
+    }
+
+    for (int i = 0; i < 36; ++i) {
+        if (nodo->hijos[i] != nullptr) {
+            recolectarCoincidencias(nodo->hijos[i], acumulado);
+        }
+    }
+}
+
 void SuffixTrie::construirIndice(const vector<Pelicula>& peliculas) {
     cout << "Construyendo el Suffix Trie optimizado..." << endl;
 

@@ -38,7 +38,8 @@ public:
 
     void insertarPalabra(const string& palabra, int idPelicula);
     void construirIndice(const vector<Pelicula>& peliculas);
-
+    NodoTrie* navegarPrefijo(const string& prefijo) const;
+    void recolectarCoincidencias(NodoTrie* nodo, unordered_map<int, int>& acumulado) const;
     NodoTrie* getRaiz() const { return raiz; }
 };
 
