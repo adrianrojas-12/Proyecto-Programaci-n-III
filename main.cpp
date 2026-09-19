@@ -35,9 +35,9 @@ int main() {
 
     cout << endl << "Primeros 10 tokens generados (listos para el indice):" << endl;
 
-    int limite = min(10, (int)p.tokens_combinados.size());
+    int limite = min(10, (int)p.tokens_txt.size());
     for (int i = 0; i < limite; i++) {
-        cout << "- " << p.tokens_combinados[i] << endl;
+        cout << "- " << p.tokens_txt[i] << endl;
     }
 
     cout << "--------------------------------------------------" << endl;

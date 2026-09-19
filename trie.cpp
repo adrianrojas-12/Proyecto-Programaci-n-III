@@ -40,7 +40,7 @@ void SuffixTrie::construirIndice(const vector<Pelicula>& peliculas) {
     cout << "Construyendo el Suffix Trie optimizado..." << endl;
 
     for (const auto& peli : peliculas) {
-        for (const string& token : peli.tokens_combinados) {
+        for (const string& token : peli.tokens_txt) {
             insertarPalabra(token, peli.id);
         }
     }
