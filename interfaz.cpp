@@ -51,6 +51,24 @@ void Interfaz::mostrarInicio() {
     cout << "Peliculas disponibles: " << peliculas.size() << endl;
     cout << endl;
     cout << "Bienvenido a la plataforma." << endl;
+
+    //--------Seccion de recomendacion-----
+    vector<int> mis_likes = cargarLikes();
+    vector<Pelicula> recomendadas = generarRecomendaciones(peliculas, mis_likes);
+
+    if (!recomendadas.empty()) {
+        cout << "--- RECOMENDADAS PARA TI ---" << endl;
+        cout << "Basado en tu interes por el genero: " << recomendadas[0].genero << endl;
+        for (const Pelicula& r : recomendadas) {
+            cout << "- " << r.titulo << " (" << r.anho << ")" << endl;
+        }
+        cout << "----------------------------" << endl;
+        cout << endl;
+    } else {
+        cout << "-> Dale 'Like' a algunas peliculas para recibir recomendaciones personalizadas." << endl;
+        cout << endl;
+    }
+    // ---------
 }
 // ============================================================
 // MENU
@@ -208,22 +226,16 @@ void Interfaz::mostrarDetalle(const Pelicula& pelicula) {
         switch (opcion) {
             case 1:
                 cout << endl;
-                cout << "La pelicula fue agregada a Likes." << endl;
-                /*
-                    Aqui se conectara con Persona 5.
-                    Ejemplo:
-                    guardarLike(pelicula.id);
-                */
+
+                guardarLike(pelicula.id);
+
                 pausar();
                 break;
             case 2:
                 cout << endl;
-                cout << "La pelicula fue agregada a" << " \"Ver mas tarde\"." << endl;
-                /*
-                    Aqui se conectara con Persona 5.
-                    Ejemplo:
-                    guardarVerMasTarde(pelicula.id);
-                */
+
+                guardarVerMasTarde(pelicula.id);
+
                 pausar();
                 break;
             case 3:
@@ -327,17 +339,19 @@ void Interfaz::mostrarVerMasTarde() {
     cout << "             VER MAS TARDE" << endl;
     cout << "========================================" << endl;
     cout << endl;
-    /*
-        Esta parte se conectara con Persona 5.
-        Persona 5 deberia entregar los IDs
-        guardados en:
-            ver_mas_tarde.txt
-        Por ejemplo:
-            vector<int> ids = cargarVerMasTarde();
-        Luego se buscan las peliculas
-        correspondientes a esos IDs.
-    */
-    cout << "La lista de \"Ver mas tarde\"" << " se conectara con Persona 5." << endl;
+
+    vector<int> ids = cargarVerMasTarde();
+    //itera por cada id guardado y muestra sus titulos, etc.
+    if (ids.empty()) {
+        cout << "No tienes peliculas guardadas en esta lista." << endl;
+    } else {
+        for (size_t i = 0; i < ids.size(); ++i) {
+            Pelicula* p = obtenerPeliculaPorId(ids[i]);
+            if (p != nullptr) {
+                cout << (i + 1) << ". " << p->titulo << " (" << p->anho << ") - " << p->director << endl;
+            }
+        }
+    }
     pausar();
 }
 // ============================================================

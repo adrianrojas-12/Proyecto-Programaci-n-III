@@ -13,4 +13,10 @@ add_executable(Proyecto_Programacion_III
     trie.h
     buscador.cpp
     buscador.h
+    interfaz.h
+    interfaz.cpp
+    persistencia.cpp
+    persistencia.h
+    recomendador.cpp
+    recomendador.h
 )

@@ -5,6 +5,8 @@
 #include "preprocesador.h"
 #include "trie.h"
 #include "buscador.h"
+#include "persistencia.h"
+#include "recomendador.h"
 using namespace std;
 class Interfaz {
 private:
