@@ -1,18 +1,21 @@
-
 #include "persistencia.h"
 #include <fstream>
 #include <iostream>
 #include <algorithm>
+#include <vector>
 
 using namespace std;
 
-//devuelve lo guardado
+// Carga los IDs guardados en el archivo de texto
 vector<int> cargarIdsDeArchivo(const string& nombreArchivo) {
     vector<int> ids;
     ifstream archivo(nombreArchivo);
-    int id;
 
-    // Leer cada ID línea por línea hasta el final
+    if (!archivo.is_open()) {
+        return ids;
+    }
+
+    int id;
     while (archivo >> id) {
         ids.push_back(id);
     }
@@ -20,40 +23,34 @@ vector<int> cargarIdsDeArchivo(const string& nombreArchivo) {
     return ids;
 }
 
-
+// Verifica si un ID ya existe en la lista
 bool estaEnLista(const string& nombreArchivo, int id) {
     vector<int> ids_guardados = cargarIdsDeArchivo(nombreArchivo);
-
     return find(ids_guardados.begin(), ids_guardados.end(), id) != ids_guardados.end();
 }
 
-//crea y/o guarda el id
-void guardarIdEnArchivo(const string& nombreArchivo, int id) {
+// Guarda un ID en el archivo (devuelve true si lo agregó, false si ya existía o falló)
+bool guardarIdEnArchivo(const string& nombreArchivo, int id) {
     if (estaEnLista(nombreArchivo, id)) {
-        cerr << "Esta pelicula ya esta guardado en tu lista de "
-        << (nombreArchivo == "ver_mas_tarde.txt" ? "Ver mas tarde" : "Likes") << endl;
-        return;
+        return false;
     }
+
     ofstream archivo(nombreArchivo, ios::app);
     if (archivo.is_open()) {
         archivo << id << "\n";
-        cout << "La pelicula fue agregada a "
-        << (nombreArchivo == "ver_mas_tarde.txt" ? "Ver mas tarde" : "Likes") << endl;
         archivo.close();
-    } else {
-        cerr << "Error al abrir/crear el archivo: " << nombreArchivo << endl;
+        return true;
     }
 
+    return false;
 }
 
-
-
-void guardarLike(int id) {
-    guardarIdEnArchivo("likes.txt", id);
+bool guardarLike(int id) {
+    return guardarIdEnArchivo("likes.txt", id);
 }
 
-void guardarVerMasTarde(int id) {
-    guardarIdEnArchivo("ver_mas_tarde.txt", id);
+bool guardarVerMasTarde(int id) {
+    return guardarIdEnArchivo("ver_mas_tarde.txt", id);
 }
 
 vector<int> cargarLikes() {

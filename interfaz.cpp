@@ -98,7 +98,7 @@ void Interfaz::buscarPeliculas() {
     }
 }
 
-// BÚSQUEDA POR TAG (DIRECTOR, CAST, GÉNERO) CORREGIDA
+// BÚSQUEDA POR TAG (DIRECTOR, CAST, GÉNERO)
 void Interfaz::buscarPorTag() {
     while (true) {
         limpiarPantalla();
@@ -119,7 +119,7 @@ void Interfaz::buscarPorTag() {
         if (opcion < 1 || opcion > 3) {
             cout << endl << "Opcion no valida." << endl;
             pausar();
-            continue; // Mantiene el menú de tags
+            continue;
         }
 
         string consulta;
@@ -127,7 +127,7 @@ void Interfaz::buscarPorTag() {
         getline(cin, consulta);
 
         if (consulta.empty() || consulta == "0") {
-            continue; // Cancela y vuelve a mostrar las opciones de tag
+            continue;
         }
 
         vector<ResultadoBusqueda> resultados;
@@ -187,12 +187,12 @@ void Interfaz::mostrarResultados(const vector<ResultadoBusqueda>& resultados, co
         if (pagina > 0) {
             cout << "7. Pagina anterior" << endl;
         }
-        cout << "0. Volver a buscar" << endl << endl;
+        cout << "0. Volver a ingresar una busqueda" << endl << endl;
 
         int opcion = leerOpcion();
 
         if (opcion == 0) {
-            return; // Regresa al menú de origen (General o Tags)
+            return; // Regresa al menú de entrada de búsqueda
         }
 
         if (opcion >= 1 && opcion <= (fin - inicio)) {
@@ -236,14 +236,16 @@ void Interfaz::mostrarDetalle(const Pelicula& pelicula) {
         cout << "----------------------------------------" << endl;
         cout << "1. Like" << endl;
         cout << "2. Ver mas tarde" << endl;
-        cout << "0. Volver" << endl << endl;
+        cout << "0. Volver a lista de resultados" << endl << endl;
 
         int opcion = leerOpcion();
         if (opcion == 1) {
             guardarLike(pelicula.id);
+            cout << endl << "¡Pelicula agregada a tus Likes!" << endl;
             pausar();
         } else if (opcion == 2) {
             guardarVerMasTarde(pelicula.id);
+            cout << endl << "¡Pelicula agregada a 'Ver mas tarde'!" << endl;
             pausar();
         } else if (opcion == 0) {
             return;
@@ -261,20 +263,57 @@ void Interfaz::mostrarVerMasTarde() {
     cout << "========================================" << endl << endl;
 
     vector<int> ids = cargarVerMasTarde();
-    if (ids.empty()) {
-        cout << "No tienes peliculas guardadas en esta lista." << endl;
-    } else {
-        for (size_t i = 0; i < ids.size(); ++i) {
-            const Pelicula* p = obtenerPeliculaPorId(ids[i]);
-            if (p) {
-                cout << (i + 1) << ". " << p->titulo << " (" << p->anho << ") - Dir: " << p->director << endl;
-            }
+    vector<const Pelicula*> lista_validos;
+
+    for (int id : ids) {
+        const Pelicula* p = obtenerPeliculaPorId(id);
+        if (p) {
+            lista_validos.push_back(p);
         }
     }
-    pausar();
+
+    if (lista_validos.empty()) {
+        cout << "No tienes peliculas guardadas en esta lista." << endl << endl;
+        pausar();
+        return;
+    }
+
+    for (size_t i = 0; i < lista_validos.size(); ++i) {
+        cout << (i + 1) << ". " << lista_validos[i]->titulo
+             << " (" << lista_validos[i]->anho << ") - Dir: "
+             << lista_validos[i]->director << endl;
+    }
+
+    cout << endl << "----------------------------------------" << endl;
+    cout << "Seleccione una pelicula (1-" << lista_validos.size() << ") para ver detalle" << endl;
+    cout << "0. Volver al Menu Principal" << endl << endl;
+
+    while (true) {
+        int opcion = leerOpcion();
+        if (opcion == 0) {
+            return;
+        }
+
+        if (opcion >= 1 && static_cast<size_t>(opcion) <= lista_validos.size()) {
+            mostrarDetalle(*lista_validos[opcion - 1]);
+            return;
+        }
+
+        cout << "Opcion no valida. Seleccione un numero entre 1 y "
+             << lista_validos.size() << " (o 0 para salir): ";
+    }
 }
 
 const Pelicula* Interfaz::obtenerPeliculaPorId(int id) const {
+    // 1. Busqueda directa por la propiedad id
+    for (const auto& p : peliculas) {
+        if (p.id == id) return &p;
+    }
+    // 2. Coincidencia por indice base 0
+    if (id >= 0 && id < static_cast<int>(peliculas.size())) {
+        return &peliculas[id];
+    }
+    // 3. Coincidencia por indice base 1
     if (id >= 1 && id <= static_cast<int>(peliculas.size())) {
         return &peliculas[id - 1];
     }
