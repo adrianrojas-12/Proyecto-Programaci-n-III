@@ -5,6 +5,7 @@
 * Cristobal Javier Aranda Gallardo
 * Walter Sebastián Aquino Pachas
 * Evans Valentino Solis Mendoza
+* Adrian Omar Llanos Cespedes
 
 ## Construcción del Suffix Trie (Inserción)
 
