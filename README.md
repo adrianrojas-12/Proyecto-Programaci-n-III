@@ -1,15 +1,14 @@
 # Programación III: Proyecto Final (2026-2)
 
 ## Integrantes 
-* Adrian Rojas Tejada
+* Adrian Gabriel Rojas Tejada
 * Cristobal Javier Aranda Gallardo
 * Walter Sebastián Aquino Pachas
-* Adrian Gabriel Rojas Tejada
 * Evans Valentino Solis Mendoza
 
 ## Construcción del Suffix Trie (Inserción)
 
-Se diseñó e implementó un **Suffix Trie** para habilitar la búsqueda por sub-palabras de forma eficiente, limitando la inserción por tokens para optimizar el consumo de memoria del dataset.
+Se diseñó e implementó un **Suffix Trie** optimizado en memoria para habilitar la búsqueda por sub-palabras de forma eficiente, tokenizando el contenido y utilizando `std::string_view` para evitar la copia innecesaria de cadenas durante la indexación.
 
 ## Diagrama ASCII del Suffix Trie
 
@@ -34,7 +33,7 @@ Ejemplo visual de la estructura insertando los tokens "bar" y "arco" (asumiendo 
 ### Pseudocódigo de Inserción
 ```text
 Estructura NodoTrie:
-    hijos: Arreglo de 36 punteros
+    hijos: Mapa (carácter -> NodoTrie*)
     esFinDePalabra: Booleano
     frecuencias: Mapa (idPelicula -> entero)
 
@@ -44,23 +43,25 @@ Clase SuffixTrie:
 
     Función construirIndice(peliculas):
         Para cada peli en peliculas:
-            Para cada token en peli.tokens_combinados:
+            Para cada token en peli.tokens_txt:
                 insertarPalabra(token, peli.id)
 
     Función insertarPalabra(palabra, idPelicula):
         N = longitud(palabra)
-        Para i desde 0 hasta N - 1:
+        Si N == 0: Retornar
+        
+        insertarSufijoDesde(raiz, palabra, 0, idPelicula)
+        
+        Para i desde 1 hasta N - 1:
             Si (N - i) >= LargoMinimo:
-                sufijo = subcadena(palabra, desde i hasta el final)
-                insertarSufijo(raiz, sufijo, idPelicula)
+                insertarSufijoDesde(raiz, palabra, i, idPelicula)
 
-    Función insertarSufijo(nodo, sufijo, idPelicula):
-        nodoActual = nodo
-        Para cada caracter c en sufijo:
-            indice = mapearIndice(c)
-            Si nodoActual.hijos[indice] es NULL:
-                nodoActual.hijos[indice] = Nuevo NodoTrie()
-            nodoActual = nodoActual.hijos[indice]
+    Función insertarSufijoDesde(nodoActual, palabra, indiceInicio, idPelicula):
+        Para i desde indiceInicio hasta longitud(palabra) - 1:
+            c = palabra[i]
+            Si nodoActual.hijos[c] no existe:
+                nodoActual.hijos[c] = Nuevo NodoTrie()
+            nodoActual = nodoActual.hijos[c]
         
         nodoActual.esFinDePalabra = Verdadero
         nodoActual.frecuencias[idPelicula] += 1
