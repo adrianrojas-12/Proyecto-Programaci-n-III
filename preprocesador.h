@@ -13,7 +13,7 @@ struct Pelicula {
     std::string cast;
     std::string genero;
     std::string sinopsis;
-    std::vector<std::string> tokens_combinados;
+    std::vector<std::string> tokens_txt;
 };
 
 std::string normalizar(const std::string& txt);

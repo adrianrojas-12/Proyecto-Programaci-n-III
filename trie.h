@@ -3,19 +3,18 @@
 
 #include <vector>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include "preprocesador.h"
 
-using namespace std;
-
 struct NodoTrie {
-    unordered_map<char, NodoTrie*> hijos;
+    std::unordered_map<char, NodoTrie*> hijos;
     bool esFinDePalabra = false;
-    unordered_map<int, int> frecuencias;
+    std::unordered_map<int, int> frecuencias;
 
     ~NodoTrie() {
-        for (auto& par : hijos) {
-            delete par.second;
+        for (auto& [caracter, nodoHijo] : hijos) {
+            delete nodoHijo;
         }
     }
 };
@@ -25,19 +24,18 @@ private:
     NodoTrie* raiz;
     int largoMinimoSufijo;
 
-    void insertarSufijo(NodoTrie* nodo, const string& sufijo, int idPelicula);
+    // Inserción interna usando índice de inicio para evitar copias de string
+    void insertarSufijoDesde(NodoTrie* nodoActual, std::string_view palabra, size_t start_idx, int idPelicula);
 
 public:
-    SuffixTrie(int minSufijoLen = 3);
+    explicit SuffixTrie(int minSufijoLen = 3);
     ~SuffixTrie();
 
-    void insertarPalabra(const string& palabra, int idPelicula);
-    void construirIndice(const vector<Pelicula>& peliculas);
+    void insertarPalabra(std::string_view palabra, int idPelicula);
+    void construirIndice(const std::vector<Pelicula>& peliculas);
 
-    NodoTrie* navegarPrefijo(const string& prefijo) const;
-
-    // Método que requiere buscador.cpp para recolectar frecuencias recursivamente
-    void recolectarCoincidencias(NodoTrie* nodo, unordered_map<int, int>& coincidencias) const;
+    NodoTrie* navegarPrefijo(std::string_view prefijo) const;
+    void recolectarCoincidencias(NodoTrie* nodoInicial, std::unordered_map<int, int>& coincidencias) const;
 
     NodoTrie* getRaiz() const { return raiz; }
 };

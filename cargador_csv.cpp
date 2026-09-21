@@ -58,9 +58,8 @@ std::vector<Pelicula> cargar_peliculas(const std::string& ruta_archivo) {
                         p.cast = fila_actual[4];
                         p.genero = fila_actual[5];
                         p.sinopsis = fila_actual[7];
-                        std::string texto_total = p.titulo + " " + p.sinopsis + " " + 
-                                                  p.director + " " + p.cast + " " + p.genero;
-                        p.tokens_combinados = tokenizar(normalizar(texto_total));
+                        std::string texto_total = p.titulo + " " + p.sinopsis;
+                        p.tokens_txt = tokenizar(normalizar(texto_total));
 
                         peliculas.push_back(std::move(p));
                     }
