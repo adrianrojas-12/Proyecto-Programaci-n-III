@@ -1,5 +1,6 @@
 #include "trie.h"
 #include <iostream>
+#include <vector>
 
 using namespace std;
 
@@ -8,30 +9,36 @@ SuffixTrie::SuffixTrie(int minSufijoLen) : largoMinimoSufijo(minSufijoLen) {
 }
 
 SuffixTrie::~SuffixTrie() {
-    delete raiz;
+    delete raiz; // Libera toda la memoria en cascada desde NodoTrie
 }
 
-void SuffixTrie::insertarSufijo(NodoTrie* nodoActual, const string& sufijo, int idPelicula) {
-    for (char c : sufijo) {
-        if (nodoActual->hijos.find(c) == nodoActual->hijos.end()) {
-            nodoActual->hijos[c] = new NodoTrie();
+void SuffixTrie::insertarSufijoDesde(NodoTrie* nodoActual, string_view palabra, size_t start_idx, int idPelicula) {
+    for (size_t i = start_idx; i < palabra.length(); ++i) {
+        char c = palabra[i];
+
+        // Optimización: 1 sola búsqueda en el mapa usando referencias
+        auto& hijo = nodoActual->hijos[c];
+        if (!hijo) {
+            hijo = new NodoTrie();
         }
-        nodoActual = nodoActual->hijos[c];
+        nodoActual = hijo;
     }
 
     nodoActual->esFinDePalabra = true;
     nodoActual->frecuencias[idPelicula]++;
 }
 
-void SuffixTrie::insertarPalabra(const string& palabra, int idPelicula) {
-    int n = palabra.length();
+void SuffixTrie::insertarPalabra(string_view palabra, int idPelicula) {
+    size_t n = palabra.length();
+    if (n == 0) return;
 
-    insertarSufijo(raiz, palabra, idPelicula);
+    // 1. Insertar la palabra completa
+    insertarSufijoDesde(raiz, palabra, 0, idPelicula);
 
-    for (int i = 1; i < n; ++i) {
-        if (n - i >= largoMinimoSufijo) {
-            string sufijo = palabra.substr(i);
-            insertarSufijo(raiz, sufijo, idPelicula);
+    // 2. Insertar sufijos omitiendo asignaciones de string
+    for (size_t i = 1; i < n; ++i) {
+        if (static_cast<int>(n - i) >= largoMinimoSufijo) {
+            insertarSufijoDesde(raiz, palabra, i, idPelicula);
         }
     }
 }
@@ -48,27 +55,39 @@ void SuffixTrie::construirIndice(const vector<Pelicula>& peliculas) {
     cout << "Indice Suffix Trie construido exitosamente." << endl;
 }
 
-NodoTrie* SuffixTrie::navegarPrefijo(const string& prefijo) const {
+NodoTrie* SuffixTrie::navegarPrefijo(string_view prefijo) const {
     NodoTrie* nodoActual = raiz;
     for (char c : prefijo) {
-        if (nodoActual->hijos.find(c) == nodoActual->hijos.end()) {
+        auto it = nodoActual->hijos.find(c);
+        if (it == nodoActual->hijos.end()) {
             return nullptr;
         }
-        nodoActual = nodoActual->hijos.at(c);
+        nodoActual = it->second;
     }
     return nodoActual;
 }
 
-void SuffixTrie::recolectarCoincidencias(NodoTrie* nodo, unordered_map<int, int>& coincidencias) const {
-    if (!nodo) return;
+// Recolección iterativa mediante DFS (Evita stack overflow y acelera la búsqueda)
+void SuffixTrie::recolectarCoincidencias(NodoTrie* nodoInicial, unordered_map<int, int>& coincidencias) const {
+    if (!nodoInicial) return;
 
-    if (nodo->esFinDePalabra) {
-        for (const auto& par : nodo->frecuencias) {
-            coincidencias[par.first] += par.second;
+    vector<NodoTrie*> pila;
+    pila.push_back(nodoInicial);
+
+    while (!pila.empty()) {
+        NodoTrie* actual = pila.back();
+        pila.pop_back();
+
+        if (actual->esFinDePalabra) {
+            for (const auto& [idPelicula, frec] : actual->frecuencias) {
+                coincidencias[idPelicula] += frec;
+            }
         }
-    }
 
-    for (const auto& par : nodo->hijos) {
-        recolectarCoincidencias(par.second, coincidencias);
+        for (const auto& [caracter, hijo] : actual->hijos) {
+            if (hijo) {
+                pila.push_back(hijo);
+            }
+        }
     }
 }

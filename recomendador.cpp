@@ -3,49 +3,44 @@
 #include <unordered_map>
 #include <algorithm>
 #include <string>
+#include <unordered_set>
 
 using namespace std;
 
-vector<Pelicula> generarRecomendaciones(const vector<Pelicula>& todas_las_peliculas, const vector<int>& likes_ids) {
-    vector<Pelicula> recomendaciones;
-    if (likes_ids.empty()) {
-        return recomendaciones;
-    }
+vector<Pelicula> generarRecomendaciones(
+    const vector<Pelicula>& todas_las_peliculas,
+    const vector<int>& likes_ids)
+{
+    if (likes_ids.empty()) return {};
 
-    // conteo de los generos de las peliculas likeadas
+    // 1. Identificar géneros preferidos por el usuario a partir de sus Likes
     unordered_map<string, int> conteo_generos;
-    for (int id : likes_ids) {
-        for (const Pelicula& p : todas_las_peliculas) {
-            if (p.id == id && !p.genero.empty() && p.genero != "unknown") {
-                conteo_generos[p.genero]++;
-                break;
-            }
+    unordered_set<int> ids_liked(likes_ids.begin(), likes_ids.end());
+
+    for (const auto& peli : todas_las_peliculas) {
+        if (ids_liked.count(peli.id)) {
+            conteo_generos[peli.genero]++;
         }
     }
 
-    if (conteo_generos.empty()) {
-        return recomendaciones;
-    }
+    if (conteo_generos.empty()) return {};
 
-    //Hallar el genero preferido
-    string genero_favorito = "";
-    int max_count = 0;
-    for (const auto& par : conteo_generos) {
-        if (par.second > max_count) {
-            max_count = par.second;
-            genero_favorito = par.first;
+    // Obtener el género con más likes
+    string genero_top = "";
+    int max_likes = -1;
+    for (const auto& [genero, cantidad] : conteo_generos) {
+        if (cantidad > max_likes) {
+            max_likes = cantidad;
+            genero_top = genero;
         }
     }
 
-    // busca peliculas con genero similar, el limite es 3
-    int limite = 3;
-    for (const Pelicula& p : todas_las_peliculas) {
-        if (recomendaciones.size() >= limite) break;
-
-        if (p.genero == genero_favorito) {
-            if (find(likes_ids.begin(), likes_ids.end(), p.id) == likes_ids.end()) {
-                recomendaciones.push_back(p);
-            }
+    // 2. Filtrar películas del mismo género que el usuario aún no haya marcado con Like
+    vector<Pelicula> recomendaciones;
+    for (const auto& peli : todas_las_peliculas) {
+        if (!ids_liked.count(peli.id) && peli.genero == genero_top) {
+            recomendaciones.push_back(peli);
+            if (recomendaciones.size() >= 5) break; // Retornar máximo 5
         }
     }
 

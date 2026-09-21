@@ -1,5 +1,6 @@
 #ifndef INTERFAZ_H
 #define INTERFAZ_H
+
 #include <vector>
 #include <string>
 #include "preprocesador.h"
@@ -7,25 +8,30 @@
 #include "buscador.h"
 #include "persistencia.h"
 #include "recomendador.h"
-using namespace std;
+
 class Interfaz {
 private:
-    vector<Pelicula> peliculas;
-    SuffixTrie* trie;
+    std::vector<Pelicula> peliculas;
+    SuffixTrie* trie; // Puntero al árbol indexado
+
 public:
-    Interfaz(const vector<Pelicula>& peliculas,SuffixTrie* trie);
+    Interfaz(const std::vector<Pelicula>& peliculas, SuffixTrie* trie);
     void iniciar();
+
 private:
+    void mostrarInicio();
     void mostrarMenu();
     void buscarPeliculas();
     void buscarPorTag();
-    void mostrarResultados(const vector<ResultadoBusqueda>& resultados,const string& consulta);
+    void mostrarResultados(const std::vector<ResultadoBusqueda>& resultados, const std::string& consulta);
     void mostrarDetalle(const Pelicula& pelicula);
     void mostrarVerMasTarde();
-    void mostrarInicio();
-    Pelicula* obtenerPeliculaPorId(int id);
-    void limpiarPantalla();
-    void pausar();
-    int leerOpcion();
+
+    // Auxiliares
+    const Pelicula* obtenerPeliculaPorId(int id) const;
+    void limpiarPantalla() const;
+    void pausar() const;
+    int leerOpcion() const;
 };
-#endif
+
+#endif // INTERFAZ_H
