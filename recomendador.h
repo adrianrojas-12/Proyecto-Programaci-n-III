@@ -1,14 +1,17 @@
+#ifndef RECOMENDADOR_H
+#define RECOMENDADOR_H
 
-#ifndef PROYECTO_PROGRAMACI_N_III_RECOMENDADOR_H
-#define PROYECTO_PROGRAMACI_N_III_RECOMENDADOR_H
-
+#include <cstddef>
 #include <vector>
 #include "preprocesador.h"
 
-std::vector<Pelicula> generarRecomendaciones(
-    const std::vector<Pelicula>& todas_las_peliculas,
-    const std::vector<int>& likes_ids
-);
+struct Recomendacion {
+    int id;
+    double score;
+};
 
+std::vector<Recomendacion> rankearRecomendaciones(const std::vector<Pelicula>& peliculas, const std::vector<int>& likes_ids, std::size_t limite = 5);
 
-#endif //PROYECTO_PROGRAMACI_N_III_RECOMENDADOR_H
+std::vector<Pelicula> generarRecomendaciones(const std::vector<Pelicula>& peliculas, const std::vector<int>& likes_ids);
+
+#endif // RECOMENDADOR_H

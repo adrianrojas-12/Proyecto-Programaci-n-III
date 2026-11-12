@@ -52,13 +52,15 @@ void Interfaz::mostrarInicio() {
 
     if (!recomendadas.empty()) {
         cout << "--- RECOMENDADAS PARA TI ---" << endl;
-        cout << "Basado en tus gustos (" << recomendadas[0].genero << "):" << endl;
-        for (const Pelicula& r : recomendadas) {
-            cout << " * " << r.titulo << " (" << r.anho << ")" << endl;
+        cout << "Basado en la similitud con tus Likes:" << endl;
+
+        for (const Pelicula& pelicula : recomendadas) {
+            cout << " * " << pelicula.titulo << " (" << pelicula.anho << ")" << endl;
         }
         cout << "----------------------------" << endl;
-    } else {
-        cout << "-> Dale 'Like' a algunas peliculas para recibir recomendaciones." << endl;
+    }
+    else {
+        cout << "-> Dale 'Like' a algunas peliculas " << "para recibir recomendaciones." << endl;
     }
 }
 
