@@ -41,15 +41,7 @@ vector<ResultadoBusqueda> buscar(const SuffixTrie& trie, const vector<Pelicula>&
             continue;
         }
 
-        NodoTrie* nodo = trie.navegarPrefijo(termino);
-
-        if (nodo == nullptr) {
-            continue;
-        }
-
-        unordered_map<int, int> coincidencias_termino;
-
-        trie.recolectarCoincidencias(nodo, coincidencias_termino);
+        unordered_map<int, int> coincidencias_termino = trie.buscarCoincidencias(termino);
 
         for (const auto& [id, frecuencia] : coincidencias_termino) {
 

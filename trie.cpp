@@ -1,93 +1,103 @@
 #include "trie.h"
+#include <algorithm>
+#include <mutex>
+#include <thread>
 #include <iostream>
-#include <vector>
-
 using namespace std;
 
-SuffixTrie::SuffixTrie(int minSufijoLen) : largoMinimoSufijo(minSufijoLen) {
-    raiz = new NodoTrie();
-}
+SuffixTrie::SuffixTrie(int minSufijoLen) : raiz(new NodoTrie()), largoMinimoSufijo(max(1,minSufijoLen)) {}
+SuffixTrie::~SuffixTrie() { delete raiz; }
 
-SuffixTrie::~SuffixTrie() {
-    delete raiz; // Libera toda la memoria en cascada desde NodoTrie
-}
-
-void SuffixTrie::insertarSufijoDesde(NodoTrie* nodoActual, string_view palabra, size_t start_idx, int idPelicula) {
-    for (size_t i = start_idx; i < palabra.length(); ++i) {
-        char c = palabra[i];
-
-        // Optimización: 1 sola búsqueda en el mapa usando referencias
-        auto& hijo = nodoActual->hijos[c];
-        if (!hijo) {
-            hijo = new NodoTrie();
-        }
-        nodoActual = hijo;
+void SuffixTrie::insertarSufijoDesde(NodoTrie* actual, string_view palabra, size_t inicio, int id) {
+    for (size_t i = inicio; i < palabra.size(); ++i) {
+        NodoTrie*& hijo = actual->hijos[palabra[i]];
+        if (!hijo) hijo = new NodoTrie();
+        actual = hijo;
     }
-
-    nodoActual->esFinDePalabra = true;
-    nodoActual->frecuencias[idPelicula]++;
+    actual->esFinDePalabra = true;
+    ++actual->frecuencias[id];
 }
 
-void SuffixTrie::insertarPalabra(string_view palabra, int idPelicula) {
-    size_t n = palabra.length();
-    if (n == 0) return;
-
-    // 1. Insertar la palabra completa
-    insertarSufijoDesde(raiz, palabra, 0, idPelicula);
-
-    // 2. Insertar sufijos omitiendo asignaciones de string
-    for (size_t i = 1; i < n; ++i) {
-        if (static_cast<int>(n - i) >= largoMinimoSufijo) {
-            insertarSufijoDesde(raiz, palabra, i, idPelicula);
-        }
+void SuffixTrie::insertarPalabraSinBloqueo(string_view palabra, int id) {
+    if (palabra.empty()) return;
+    // Cada sufijo indexado permite localizar subcadenas, incluso al final.
+    for (size_t i = 0; i < palabra.size(); ++i) {
+        if (palabra.size() - i >= static_cast<size_t>(largoMinimoSufijo) || i == 0)
+            insertarSufijoDesde(raiz, palabra, i, id);
     }
+}
+
+void SuffixTrie::insertarPalabra(string_view palabra, int id) {
+    unique_lock<shared_mutex> lock(mutexArbol);
+    insertarPalabraSinBloqueo(palabra, id);
 }
 
 void SuffixTrie::construirIndice(const vector<Pelicula>& peliculas) {
-    cout << "Construyendo el Suffix Trie optimizado..." << endl;
+    cout << "Construyendo indice secuencial...\n";
+    unique_lock<shared_mutex> lock(mutexArbol);
+    for (const auto& peli : peliculas)
+        for (const auto& token : peli.tokens_txt)
+            insertarPalabraSinBloqueo(token, peli.id);
+    cout << "Indice construido.\n";
+}
 
-    for (const auto& peli : peliculas) {
-        for (const string& token : peli.tokens_txt) {
-            insertarPalabra(token, peli.id);
-        }
+void SuffixTrie::construirIndiceParalelo(const vector<Pelicula>& peliculas, unsigned hilos) {
+    if (hilos < 2 || peliculas.size() < 2) { construirIndice(peliculas); return; }
+    hilos = min<unsigned>(hilos, static_cast<unsigned>(peliculas.size()));
+    cout << "Indexando con " << hilos << " hilos...\n";
+    vector<thread> trabajadores;
+    trabajadores.reserve(hilos);
+    for (unsigned t = 0; t < hilos; ++t) {
+        size_t inicio = peliculas.size() * t / hilos;
+        size_t fin = peliculas.size() * (t + 1) / hilos;
+        trabajadores.emplace_back([this, &peliculas, inicio, fin]() {
+            for (size_t i = inicio; i < fin; ++i) {
+                // Bloqueo por pelicula: menos contencion que uno por palabra.
+                unique_lock<shared_mutex> lock(mutexArbol);
+                for (const auto& token : peliculas[i].tokens_txt)
+                    insertarPalabraSinBloqueo(token, peliculas[i].id);
+            }
+        });
     }
+    for (auto& hilo : trabajadores) hilo.join();
+    cout << "Indice paralelo construido.\n";
+}
 
-    cout << "Indice Suffix Trie construido exitosamente." << endl;
+NodoTrie* SuffixTrie::navegarPrefijoSinBloqueo(string_view prefijo) const {
+    NodoTrie* actual = raiz;
+    for (char c : prefijo) {
+        auto it = actual->hijos.find(c);
+        if (it == actual->hijos.end()) return nullptr;
+        actual = it->second;
+    }
+    return actual;
+}
+
+void SuffixTrie::recolectarSinBloqueo(NodoTrie* inicial, unordered_map<int,int>& salida) const {
+    if (!inicial) return;
+    vector<NodoTrie*> pila{inicial};
+    while (!pila.empty()) {
+        NodoTrie* actual = pila.back(); pila.pop_back();
+        if (actual->esFinDePalabra)
+            for (const auto& par : actual->frecuencias) salida[par.first] += par.second;
+        for (const auto& par : actual->hijos)
+            if (par.second) pila.push_back(par.second);
+    }
+}
+
+unordered_map<int,int> SuffixTrie::buscarCoincidencias(string_view termino) const {
+    unordered_map<int,int> resultado;
+    if (termino.empty()) return resultado;
+    shared_lock<shared_mutex> lock(mutexArbol);
+    recolectarSinBloqueo(navegarPrefijoSinBloqueo(termino), resultado);
+    return resultado;
 }
 
 NodoTrie* SuffixTrie::navegarPrefijo(string_view prefijo) const {
-    NodoTrie* nodoActual = raiz;
-    for (char c : prefijo) {
-        auto it = nodoActual->hijos.find(c);
-        if (it == nodoActual->hijos.end()) {
-            return nullptr;
-        }
-        nodoActual = it->second;
-    }
-    return nodoActual;
+    shared_lock<shared_mutex> lock(mutexArbol);
+    return navegarPrefijoSinBloqueo(prefijo);
 }
-
-// Recolección iterativa mediante DFS (Evita stack overflow y acelera la búsqueda)
-void SuffixTrie::recolectarCoincidencias(NodoTrie* nodoInicial, unordered_map<int, int>& coincidencias) const {
-    if (!nodoInicial) return;
-
-    vector<NodoTrie*> pila;
-    pila.push_back(nodoInicial);
-
-    while (!pila.empty()) {
-        NodoTrie* actual = pila.back();
-        pila.pop_back();
-
-        if (actual->esFinDePalabra) {
-            for (const auto& [idPelicula, frec] : actual->frecuencias) {
-                coincidencias[idPelicula] += frec;
-            }
-        }
-
-        for (const auto& [caracter, hijo] : actual->hijos) {
-            if (hijo) {
-                pila.push_back(hijo);
-            }
-        }
-    }
+void SuffixTrie::recolectarCoincidencias(NodoTrie* nodo, unordered_map<int,int>& salida) const {
+    shared_lock<shared_mutex> lock(mutexArbol);
+    recolectarSinBloqueo(nodo, salida);
 }
