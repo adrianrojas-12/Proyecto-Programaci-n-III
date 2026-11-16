@@ -1,3 +1,101 @@
+# Programación III: Proyecto Final (2026-2)
+
+## Integrantes 
+* Adrian Gabriel Rojas Tejada
+* Cristobal Javier Aranda Gallardo
+* Walter Sebastián Aquino Pachas
+* Evans Valentino Solis Mendoza
+* Adrian Omar Llanos Cespedes
+
+## Construcción del Suffix Trie (Inserción)
+
+Se diseñó e implementó un **Suffix Trie** optimizado en memoria para habilitar la búsqueda por sub-palabras de forma eficiente, tokenizando el contenido y utilizando `std::string_view` para evitar la copia innecesaria de cadenas durante la indexación.
+
+## Diagrama ASCII del Suffix Trie
+
+Ejemplo visual de la estructura insertando los tokens "bar" y "arco" (asumiendo un largo mínimo de sufijo = 3 para simplificar).
+*Sufijos insertados para "bar": "bar".*
+*Sufijos insertados para "arco": "arco", "rco".*
+
+```text
+               (raiz)
+              /   |   \
+            (b)  (a)  (r)
+            /     |     \
+          (a)    (r)    (c)
+          /       |       \
+        (r)*     (c)      (o)* [id, frec]
+                  |
+                 (o)* [id, frec]
+
+* = esFinDePalabra (El nodo almacena un mapa con los IDs de las películas y su frecuencia)
+```
+
+### Pseudocódigo de Inserción
+```text
+Estructura NodoTrie:
+    hijos: Mapa (carácter -> NodoTrie*)
+    esFinDePalabra: Booleano
+    frecuencias: Mapa (idPelicula -> entero)
+
+Clase SuffixTrie:
+    Raiz: NodoTrie
+    LargoMinimo: Entero = 2
+
+    Función construirIndice(peliculas):
+        Para cada peli en peliculas:
+            Para cada token en peli.tokens_txt:
+                insertarPalabra(token, peli.id)
+
+    Función insertarPalabra(palabra, idPelicula):
+        N = longitud(palabra)
+        Si N == 0: Retornar
+        
+        insertarSufijoDesde(raiz, palabra, 0, idPelicula)
+        
+        Para i desde 1 hasta N - 1:
+            Si (N - i) >= LargoMinimo:
+                insertarSufijoDesde(raiz, palabra, i, idPelicula)
+
+    Función insertarSufijoDesde(nodoActual, palabra, indiceInicio, idPelicula):
+        Para i desde indiceInicio hasta longitud(palabra) - 1:
+            c = palabra[i]
+            Si nodoActual.hijos[c] no existe:
+                nodoActual.hijos[c] = Nuevo NodoTrie()
+            nodoActual = nodoActual.hijos[c]
+        
+        nodoActual.esFinDePalabra = Verdadero
+        nodoActual.frecuencias[idPelicula] += 1
+```
+
+### Pseudocódigo de Busqueda
+Para asegurar que los resultados más relevantes aparezcan primero 
+se les da un puntaje las coincidencias, lo que le da peso a la frecuencia de aparición del término, 
+sobre todo si el término está en el título, y tambien se considera 
+cuántos términos diferentes de la consulta están presentes en la película.
+```text
+Función buscar(trie, peliculas, consulta):
+    terminos = dividir_consulta(consulta)
+    
+    Para cada termino en terminos:
+        nodo = trie.navegarPrefijo(termino)
+        coincidencias = recolectarCoincidencias(nodo)
+        
+        Para cada (id, frecuencia) en coincidencias:
+            frecuencia_total[id] += frecuencia
+            cobertura[id] += 1
+            
+            Si normalizar(titulo_pelicula[id]) contiene termino:
+                en_titulo[id] += 1
+
+    Para cada id con coincidencias:
+        score = (cobertura * 50.0) + frecuencia_total + (en_titulo * 30.0)
+        resultados.push_back({id, score})
+
+    Ordenar resultados por score descendente
+    Retornar resultados
+```
+
 ## Patrones de Diseño (patrones.h / patrones.cpp)
 
 Se implementaron 4 patrones GoF más una fachada que conecta todo el backend con la interfaz, encapsulados en un solo módulo (`patrones.h`/`patrones.cpp`).
@@ -146,3 +244,4 @@ Clase ControladorApp:
             obsRecomendaciones.actualizarCache(generarRecomendaciones(peliculas, likes))
         Retornar obsRecomendaciones.obtenerCache()
 ```
+marcar la casilla "Emulate terminal in output console".
