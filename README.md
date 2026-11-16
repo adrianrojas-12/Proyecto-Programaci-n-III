@@ -1,116 +1,148 @@
-# Programación III: Proyecto Final (2026-2)
+## Patrones de Diseño (patrones.h / patrones.cpp)
 
-## Integrantes 
-* Adrian Gabriel Rojas Tejada
-* Cristobal Javier Aranda Gallardo
-* Walter Sebastián Aquino Pachas
-* Evans Valentino Solis Mendoza
-* Adrian Omar Llanos Cespedes
+Se implementaron 4 patrones GoF más una fachada que conecta todo el backend con la interfaz, encapsulados en un solo módulo (`patrones.h`/`patrones.cpp`).
 
-## Construcción del Suffix Trie (Inserción)
-
-Se diseñó e implementó un **Suffix Trie** optimizado en memoria para habilitar la búsqueda por sub-palabras de forma eficiente, tokenizando el contenido y utilizando `std::string_view` para evitar la copia innecesaria de cadenas durante la indexación.
-
-## Diagrama ASCII del Suffix Trie
-
-Ejemplo visual de la estructura insertando los tokens "bar" y "arco" (asumiendo un largo mínimo de sufijo = 3 para simplificar).
-*Sufijos insertados para "bar": "bar".*
-*Sufijos insertados para "arco": "arco", "rco".*
+### Singleton — `GestorDatos`
+Garantiza una única instancia de las películas cargadas y del Suffix Trie construido durante toda la ejecución, evitando duplicar el costo de carga (~15s, ~1.8GB de RAM) y posibles desincronizaciones entre copias.
 
 ```text
-               (raiz)
-              /   |   \
-            (b)  (a)  (r)
-            /     |     \
-          (a)    (r)    (c)
-          /       |       \
-        (r)*     (c)      (o)* [id, frec]
-                  |
-                 (o)* [id, frec]
+Clase GestorDatos:
+    cargado: Booleano = Falso
+    peliculas: Lista<Pelicula>
+    trie: SuffixTrie
 
-* = esFinDePalabra (El nodo almacena un mapa con los IDs de las películas y su frecuencia)
+    Función instancia():
+        // Variable estatica local: se crea una sola vez,
+        // la primera vez que se llama a instancia()
+        Si no existe unica_instancia:
+            unica_instancia = Nuevo GestorDatos()
+        Retornar unica_instancia
+
+    Función cargar(rutaCSV, hilos):
+        Si cargado:
+            Retornar Verdadero  // ya cargado, no repetir trabajo
+
+        peliculas = cargar_peliculas(rutaCSV)
+        Si peliculas esta vacio:
+            Retornar Falso
+
+        trie = Nuevo SuffixTrie()
+        trie.construirIndiceParalelo(peliculas, hilos)
+        cargado = Verdadero
+        Retornar Verdadero
 ```
 
-### Pseudocódigo de Inserción
+### Strategy — `IEstrategiaBusqueda`
+Define una interfaz común para las distintas formas de buscar: `EstrategiaBusquedaTexto` (texto libre vía el Trie en paralelo) y `EstrategiaBusquedaTag` (por Director, Cast o Género vía comparación de substring). Reemplaza el `if/else` manual que existía en `Interfaz::buscarPorTag`.
+
 ```text
-Estructura NodoTrie:
-    hijos: Mapa (carácter -> NodoTrie*)
-    esFinDePalabra: Booleano
-    frecuencias: Mapa (idPelicula -> entero)
+Interfaz IEstrategiaBusqueda:
+    Función buscar(consulta): Lista<ResultadoBusqueda>
 
-Clase SuffixTrie:
-    Raiz: NodoTrie
-    LargoMinimo: Entero = 2
+Clase EstrategiaBusquedaTexto implementa IEstrategiaBusqueda:
+    trie, peliculas, hilos
 
-    Función construirIndice(peliculas):
-        Para cada peli en peliculas:
-            Para cada token en peli.tokens_txt:
-                insertarPalabra(token, peli.id)
+    Función buscar(consulta):
+        Retornar buscarParalelo(trie, peliculas, consulta, hilos)
 
-    Función insertarPalabra(palabra, idPelicula):
-        N = longitud(palabra)
-        Si N == 0: Retornar
-        
-        insertarSufijoDesde(raiz, palabra, 0, idPelicula)
-        
-        Para i desde 1 hasta N - 1:
-            Si (N - i) >= LargoMinimo:
-                insertarSufijoDesde(raiz, palabra, i, idPelicula)
+Clase EstrategiaBusquedaTag implementa IEstrategiaBusqueda:
+    peliculas, tipoTag  // DIRECTOR, CAST o GENERO
 
-    Función insertarSufijoDesde(nodoActual, palabra, indiceInicio, idPelicula):
-        Para i desde indiceInicio hasta longitud(palabra) - 1:
-            c = palabra[i]
-            Si nodoActual.hijos[c] no existe:
-                nodoActual.hijos[c] = Nuevo NodoTrie()
-            nodoActual = nodoActual.hijos[c]
-        
-        nodoActual.esFinDePalabra = Verdadero
-        nodoActual.frecuencias[idPelicula] += 1
+    Función buscar(consulta):
+        resultados = []
+        objetivo = normalizar(consulta)
+        Para cada pelicula en peliculas:
+            campo = normalizar(campoSegunTipo(pelicula, tipoTag))
+            Si campo contiene objetivo:
+                resultados.push_back({pelicula.id, 1.0})
+        Retornar resultados
 ```
 
-### Pseudocódigo de Busqueda
-Para asegurar que los resultados más relevantes aparezcan primero 
-se les da un puntaje las coincidencias, lo que le da peso a la frecuencia de aparición del término, 
-sobre todo si el término está en el título, y tambien se considera 
-cuántos términos diferentes de la consulta están presentes en la película.
+### Factory — `FabricaEstrategiaBusqueda`
+Construye la estrategia concreta adecuada según el `TipoBusqueda` elegido por el usuario, sin que el resto del programa conozca los detalles de construcción de cada una.
+
 ```text
-Función buscar(trie, peliculas, consulta):
-    terminos = dividir_consulta(consulta)
-    
-    Para cada termino en terminos:
-        nodo = trie.navegarPrefijo(termino)
-        coincidencias = recolectarCoincidencias(nodo)
-        
-        Para cada (id, frecuencia) en coincidencias:
-            frecuencia_total[id] += frecuencia
-            cobertura[id] += 1
-            
-            Si normalizar(titulo_pelicula[id]) contiene termino:
-                en_titulo[id] += 1
-
-    Para cada id con coincidencias:
-        score = (cobertura * 50.0) + frecuencia_total + (en_titulo * 30.0)
-        resultados.push_back({id, score})
-
-    Ordenar resultados por score descendente
-    Retornar resultados
+Clase FabricaEstrategiaBusqueda:
+    Función crear(tipo, trie, peliculas, hilos): IEstrategiaBusqueda
+        Segun tipo:
+            Caso TEXTO:
+                Retornar Nueva EstrategiaBusquedaTexto(trie, peliculas, hilos)
+            Caso TAG_DIRECTOR:
+                Retornar Nueva EstrategiaBusquedaTag(peliculas, DIRECTOR)
+            Caso TAG_CAST:
+                Retornar Nueva EstrategiaBusquedaTag(peliculas, CAST)
+            Caso TAG_GENERO:
+                Retornar Nueva EstrategiaBusquedaTag(peliculas, GENERO)
 ```
 
-### Instrucciones de Compilación y Ejecución
-1. Asegúrate de tener un compilador de C++ (que soporte C++17) y CMake instalados en tu sistema.
-2. Clona este repositorio.
-3. Asegúrate de que el archivo base de datos wiki_movie_plots_deduped.csv se encuentre en la misma 
-carpeta donde se generará el ejecutable.
-5. Si usas consola, ejecuta los siguientes comandos en la raíz del proyecto:
+### Observer — `SujetoLikes`
+Cuando el usuario da "Like" a una película, notifica a dos observadores independientes: `ObservadorRecomendaciones` (invalida y recalcula el cache de recomendaciones) y `ObservadorEstadisticas` (cuenta likes totales y género favorito).
+
 ```text
-Bash
-mkdir build
-cd build
-cmake ..
-make
-./PlataformaStreaming
+Interfaz IObservadorLike:
+    Función alRecibirLike(pelicula)
+
+Clase SujetoLikes:
+    observadores: Lista<IObservadorLike>
+
+    Función suscribir(observador):
+        observadores.push_back(observador)
+
+    Función notificar(pelicula):
+        Para cada observador en observadores:
+            observador.alRecibirLike(pelicula)
+
+Clase ObservadorRecomendaciones implementa IObservadorLike:
+    cache: Lista<Pelicula>
+    necesitaRecalcular: Booleano = Verdadero
+
+    Función alRecibirLike(pelicula):
+        necesitaRecalcular = Verdadero  // solo marca, no recalcula aqui
+
+Clase ObservadorEstadisticas implementa IObservadorLike:
+    totalLikes: Entero = 0
+    conteoPorGenero: Mapa (genero -> entero)
+
+    Función alRecibirLike(pelicula):
+        totalLikes += 1
+        Para cada genero en separarGeneros(pelicula.genero):
+            conteoPorGenero[genero] += 1
 ```
-Nota para usuarios de CLion (o IDEs similares): El programa utiliza comandos del sistema para 
-limpiar la pantalla interactiva (system("cls") / system("clear")). 
-Para una correcta visualización en CLion, debes ir a Run -> Edit Configurations... y 
-marcar la casilla "Emulate terminal in output console".
+
+### Facade — `ControladorApp`
+Punto único de entrada para la interfaz (consola o GUI): expone `buscarTexto`, `buscarPorTag`, `darLike`, `agregarVerMasTarde`, `obtenerRecomendaciones`, etc., ocultando el Trie, la persistencia y el ranking detrás de métodos simples. Internamente coordina a los 4 patrones anteriores con `persistencia.cpp` y `recomendador.cpp`.
+
+```text
+Clase ControladorApp:
+    sujetoLikes, obsRecomendaciones, obsEstadisticas
+
+    Constructor(rutaCSV, hilos):
+        sujetoLikes.suscribir(obsRecomendaciones)
+        sujetoLikes.suscribir(obsEstadisticas)
+
+    Función inicializar():
+        Retornar GestorDatos.instancia().cargar(rutaCSV, hilos)
+
+    Función buscarTexto(consulta):
+        estrategia = Fabrica.crear(TEXTO, trie, peliculas, hilos)
+        Retornar estrategia.buscar(consulta)
+
+    Función buscarPorTag(tipo, consulta):
+        estrategia = Fabrica.crear(tipoBusquedaSegun(tipo), trie, peliculas, hilos)
+        Retornar estrategia.buscar(consulta)
+
+    Función darLike(id):
+        pelicula = obtenerPeliculaPorId(id)
+        Si pelicula no existe: Retornar Falso
+
+        esNuevo = guardarLike(id)
+        Si esNuevo:
+            sujetoLikes.notificar(pelicula)  // dispara Observer
+        Retornar esNuevo
+
+    Función obtenerRecomendaciones():
+        Si obsRecomendaciones.necesitaRecalcular:
+            likes = cargarLikes()
+            obsRecomendaciones.actualizarCache(generarRecomendaciones(peliculas, likes))
+        Retornar obsRecomendaciones.obtenerCache()
+```
