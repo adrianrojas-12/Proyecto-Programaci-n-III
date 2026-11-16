@@ -1,0 +1,16 @@
+# Binarios compilados de pybind11
+*.pyd
+*.so
+gui_python/*.pyd
+gui_python/*.so
+
+# Carpetas de build e IDE
+cmake-build-*/
+build/
+.idea/
+.venv/
+
+# Archivos de datos locales
+*.exe
+likes.txt
+ver_mas_tarde.txt
