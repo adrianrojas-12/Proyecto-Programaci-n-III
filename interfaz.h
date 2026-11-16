@@ -1,21 +1,15 @@
 #ifndef INTERFAZ_H
 #define INTERFAZ_H
 
-#include <vector>
 #include <string>
-#include "preprocesador.h"
-#include "trie.h"
-#include "buscador.h"
-#include "persistencia.h"
-#include "recomendador.h"
+#include <vector>
+
+#include "patrones.h"  // ControladorApp
 
 class Interfaz {
-private:
-    std::vector<Pelicula> peliculas;
-    SuffixTrie* trie; // Puntero al árbol indexado
-
 public:
-    Interfaz(const std::vector<Pelicula>& peliculas, SuffixTrie* trie);
+    explicit Interfaz(ControladorApp& controlador);
+
     void iniciar();
 
 private:
@@ -27,11 +21,11 @@ private:
     void mostrarDetalle(const Pelicula& pelicula);
     void mostrarVerMasTarde();
 
-    // Auxiliares
-    const Pelicula* obtenerPeliculaPorId(int id) const;
     void limpiarPantalla() const;
     void pausar() const;
     int leerOpcion() const;
+
+    ControladorApp& controlador_;
 };
 
-#endif // INTERFAZ_H
+#endif  // INTERFAZ_H
