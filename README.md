@@ -245,3 +245,48 @@ Clase ControladorApp:
         Retornar obsRecomendaciones.obtenerCache()
 ```
 marcar la casilla "Emulate terminal in output console".
+
+## Interfaz Gráfica de Usuario — GUI (`gui_python/`)
+
+La capa de presentación está aislada dentro del directorio `gui_python/` y desarrollada en **Python 3** utilizando la librería estándar **Tkinter** (`ttk`), manteniendo una arquitectura desacoplada del núcleo en C++ mediante un contrato de datos (*Mock Data* en fase inicial) listo para consumir la fachada `ControladorApp`.
+
+### Estructura del Módulo
+* **`main.py`:** Punto de entrada de la aplicación visual; instancia la ventana principal y ejecuta el bucle de eventos (`mainloop()`).
+* **`interfaz_gui.py`:** Contiene la clase encapsulada `AplicacionGUI` (heredando de `tk.Tk`), gestionando los widgets, eventos mediante *callbacks* y la paginación de resultados.
+* **`mock_data.py`:** Define la estructura contractual de datos simulados (`PELICULAS_DUMMY`) con los atributos `id`, `titulo`, `likes` y `ver_mas_tarde`, permitiendo el desarrollo independiente de la GUI.
+
+### Flujo de Paginación y Estructuras de Datos (POO y Queues)
+Para evitar sobrecargar la vista cuando una búsqueda arroja cientos de coincidencias, se implementó una cola FIFO mediante `collections.deque` que despacha los resultados en bloques de **5 en 5**.
+
+```text
+Clase AplicacionGUI hereda de tk.Tk:
+    todas_las_peliculas: Lista<Diccionario>
+    cola_paginacion: Cola (deque)
+
+    Constructor():
+        Configurar ventana ("Sistema de Búsqueda y Recomendación de Películas", 600x500)
+        Inicializar widgets (Barra de búsqueda, Tabla Treeview, Botón "Siguiente (5)")
+        Vincular evento doble clic (<Double-1>) al callback abrir_modal_detalle
+        ejecutar_busqueda()  // Carga inicial por defecto
+
+    Función ejecutar_busqueda():
+        consulta = obtener_texto(entry_busqueda).minusculas()
+        filtrados = filtrar(todas_las_peliculas donde consulta en titulo)
+        cola_paginacion = Nueva Cola(filtrados)
+        mostrar_siguiente_pagina()
+
+    Función mostrar_siguiente_pagina():
+        Limpiar filas actuales de la tabla (Treeview)
+        limite = minimo(5, longitud(cola_paginacion))
+        Para i desde 1 hasta limite:
+            pelicula = cola_paginacion.popleft()  // Extrae el primer elemento (FIFO)
+            Insertar fila (pelicula.id, pelicula.titulo, pelicula.likes) en Treeview
+
+    Callback abrir_modal_detalle(evento):
+        fila = obtener_seleccion(Treeview)
+        Si fila no existe: Retornar
+
+        Crear ventana secundaria modal (tk.Toplevel)
+        Mostrar título de la película seleccionada
+        Botón "Dar Like" -> ejecuta callback de confirmación/actualización
+        
