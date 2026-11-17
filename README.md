@@ -290,3 +290,31 @@ Clase AplicacionGUI hereda de tk.Tk:
         Mostrar título de la película seleccionada
         Botón "Dar Like" -> ejecuta callback de confirmación/actualización
         
+```
+
+## Cómo ejecutar la Interfaz Gráfica (GUI en Python + C++)
+
+El proyecto mantiene dos objetivos de compilación independientes en `CMakeLists.txt`:
+* **`Proyecto_Programacion_III`**: Ejecutable original de consola (`main.cpp` + `interfaz.cpp`).
+* **`motor_peliculas`**: Módulo compilado mediante `pybind11` (`bindings_python.cpp`) que expone la fachada `ControladorApp` hacia Python.
+
+### Requisitos previos
+1. Tener instalado **Python 3** (64 bits, con `tkinter` incluido por defecto en Windows/macOS).
+2. Tener el archivo de datos **`wiki_movie_plots_deduped.csv`** ubicado en la carpeta raíz del proyecto.
+
+### Pasos de configuración en CLion (primera vez)
+
+1. **Configurar el intérprete de Python en CLion:**
+    * Abre `gui_python/interfaz_gui.py` y haz clic en **"Configure Python interpreter"** en la barra superior (o ve a *File -> Settings -> Build, Execution, Deployment -> Python Interpreter*).
+    * Selecciona **Add Interpreter -> Add Local Interpreter -> Select existing** y elige el ejecutable `python.exe` global de tu sistema (no un entorno virtual `.venv`).
+
+2. **Activar el perfil `Release` en CMake:**
+    * En la barra superior de CLion, cambia el perfil de `Debug` a **`Release`** (si no aparece, créalo con el botón **`+`** en *File -> Settings -> Build, Execution, Deployment -> CMake*). Esto optimiza la carga del *Suffix Trie* y evita errores de enlace con librerías `_d.lib` de Python en Windows.
+
+3. **Compilar el puente C++ -> Python (`motor_peliculas`):**
+    * Haz clic derecho sobre `CMakeLists.txt` -> **Reload CMake Project** (descargará `pybind11` automáticamente).
+    * En el selector de ejecución superior, elige el target **`motor_peliculas`** y presiona **Build** (ícono del martillo). Esto generará automáticamente el binario (`motor_peliculas.pyd` en Windows o `.so` en Linux/macOS) dentro de la carpeta `gui_python/`.
+
+4. **Ejecutar la aplicación visual:**
+    * Abre `gui_python/main.py` y dale a **Run** (si pide configurar el SDK de ejecución, selecciona el intérprete de Python configurado en el paso 1).
+    * *Nota:* Al abrirse, la ventana tardará unos segundos en aparecer mientras C++ indexa el archivo CSV en memoria; una vez cargada, las búsquedas son instantáneas.
