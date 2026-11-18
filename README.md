@@ -11,6 +11,32 @@
 
 Se diseñó e implementó un **Suffix Trie** optimizado en memoria para habilitar la búsqueda por sub-palabras de forma eficiente, tokenizando el contenido y utilizando `std::string_view` para evitar la copia innecesaria de cadenas durante la indexación.
 
+Archivos principales: trie.h, trie.cpp. Integración: buscador.cpp, buscador_paralelo.cpp. Validación: benchmark.cpp.
+
+## ¿Por qué un Suffix Trie?
+
+Un Trie tradicional indexa palabras desde su primer carácter. Por ejemplo, si almacena barco, puede navegar bar, pero no encontrar directamente arc. El Suffix Trie inserta también sufijos de la palabra, de modo que una subcadena puede buscarse como prefijo de alguno de ellos.
+
+Para barco, con largoMinimoSufijo = 2, se insertan:
+barco
+arco
+rco
+co
+Así, bar sigue la ruta b → a → r y arc sigue a → r → c. La subcadena co sigue c → o.
+
+Limitación: no se inserta el sufijo o, por lo que una consulta de una sola letra al final de una palabra puede no encontrarse. Para indexar todos los sufijos debe utilizarse un mínimo de 1, a costa de más memoria. En el proyecto de prueba se construye SuffixTrie arbol(2).
+
+## Estructura de un nodo
+
+En trie.h se define NodoTrie con tres elementos:
+Atributo	Tipo	Función
+hijos	unordered_map<char, NodoTrie*>	Relaciona cada carácter con el siguiente nodo.
+esFinDePalabra	bool	Indica que una ruta termina un sufijo insertado.
+frecuencias	unordered_map<int,int>	Asocia el ID de la película con la cantidad de inserciones de ese sufijo.
+
+
+Cada nodo libera recursivamente sus hijos en su destructor. La clase SuffixTrie es propietaria de la raíz y deshabilita la copia para evitar duplicar accidentalmente punteros a nodos.
+
 ## Diagrama ASCII del Suffix Trie
 
 Ejemplo visual de la estructura insertando los tokens "bar" y "arco" (asumiendo un largo mínimo de sufijo = 3 para simplificar).
