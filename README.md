@@ -11,32 +11,6 @@
 
 Se diseñó e implementó un **Suffix Trie** optimizado en memoria para habilitar la búsqueda por sub-palabras de forma eficiente, tokenizando el contenido y utilizando `std::string_view` para evitar la copia innecesaria de cadenas durante la indexación.
 
-Archivos principales: trie.h, trie.cpp. Integración: buscador.cpp, buscador_paralelo.cpp. Validación: benchmark.cpp.
-
-## ¿Por qué un Suffix Trie?
-
-Un Trie tradicional indexa palabras desde su primer carácter. Por ejemplo, si almacena barco, puede navegar bar, pero no encontrar directamente arc. El Suffix Trie inserta también sufijos de la palabra, de modo que una subcadena puede buscarse como prefijo de alguno de ellos.
-
-Para barco, con largoMinimoSufijo = 2, se insertan:
-barco
-arco
-rco
-co
-Así, bar sigue la ruta b → a → r y arc sigue a → r → c. La subcadena co sigue c → o.
-
-Limitación: no se inserta el sufijo o, por lo que una consulta de una sola letra al final de una palabra puede no encontrarse. Para indexar todos los sufijos debe utilizarse un mínimo de 1, a costa de más memoria. En el proyecto de prueba se construye SuffixTrie arbol(2).
-
-## Estructura de un nodo
-
-En trie.h se define NodoTrie con tres elementos:
-Atributo	Tipo	Función
-hijos	unordered_map<char, NodoTrie*>	Relaciona cada carácter con el siguiente nodo.
-esFinDePalabra	bool	Indica que una ruta termina un sufijo insertado.
-frecuencias	unordered_map<int,int>	Asocia el ID de la película con la cantidad de inserciones de ese sufijo.
-
-
-Cada nodo libera recursivamente sus hijos en su destructor. La clase SuffixTrie es propietaria de la raíz y deshabilita la copia para evitar duplicar accidentalmente punteros a nodos.
-
 ## Diagrama ASCII del Suffix Trie
 
 Ejemplo visual de la estructura insertando los tokens "bar" y "arco" (asumiendo un largo mínimo de sufijo = 3 para simplificar).
@@ -121,6 +95,192 @@ Función buscar(trie, peliculas, consulta):
     Ordenar resultados por score descendente
     Retornar resultados
 ```
+## Estructura del Suffix Trie
+
+El árbol está compuesto por nodos conectados mediante caracteres. Cada nodo puede tener varios hijos y almacena información que permite identificar las películas donde aparecen los sufijos indexados.
+
+En trie.h se utiliza la siguiente estructura:
+
+struct NodoTrie {
+    std::unordered_map<char, NodoTrie*> hijos;
+    bool esFinDePalabra = false;
+    std::unordered_map<int,int> frecuencias;
+
+    ~NodoTrie() {
+        for (auto& par : hijos)
+            delete par.second;
+    }
+};
+
+Cada atributo cumple una función:
+
+hijos: almacena los siguientes caracteres de las rutas del árbol.
+
+esFinDePalabra: indica si el nodo representa el final de un sufijo insertado.
+
+frecuencias: relaciona los identificadores de las películas con la cantidad de veces que aparece el sufijo.
+
+Destructor: libera los nodos hijos cuando se destruye el árbol.
+
+Esta estructura permite compartir los prefijos comunes entre diferentes sufijos, evitando crear rutas independientes cuando coinciden sus caracteres iniciales.
+
+## Funcionamiento de la inserción de sufijos
+
+A diferencia de un Trie tradicional, que almacena las palabras desde su primer carácter, el Suffix Trie también almacena sus sufijos.
+
+Por ejemplo, para la palabra barco, utilizando una longitud mínima de sufijo de 2, se insertan:
+
+barco
+arco
+rco
+co
+
+Esto permite encontrar subcadenas como bar, arc o rco, ya que cada una corresponde al prefijo de alguna ruta almacenada.
+
+La inserción se realiza mediante dos funciones principales:
+
+insertarPalabraSinBloqueo(): recorre las posiciones de la palabra y determina los sufijos que deben insertarse.
+
+insertarSufijoDesde(): recorre los caracteres del sufijo, crea los nodos necesarios y actualiza la frecuencia de la película.
+
+Pseudocódigo de inserción:
+
+Función insertarPalabraSinBloqueo(palabra, id):
+    Si palabra está vacía:
+        Retornar
+
+    Para i desde 0 hasta longitud(palabra) - 1:
+        Si longitud(palabra) - i >= largoMinimoSufijo
+           O i == 0:
+            insertarSufijoDesde(raiz, palabra, i, id)
+
+
+Función insertarSufijoDesde(nodo, palabra, inicio, id):
+    Para i desde inicio hasta longitud(palabra) - 1:
+        caracter = palabra[i]
+
+        Si no existe un hijo con ese caracter:
+            Crear un nuevo NodoTrie
+
+        nodo = nodo.hijos[caracter]
+
+    nodo.esFinDePalabra = Verdadero
+    nodo.frecuencias[id] += 1
+
+Se utiliza std::string_view para acceder a los caracteres sin crear una copia de la cadena por cada sufijo.
+
+## Modificaciones realizadas en el segundo avance
+
+La principal modificación fue adaptar el árbol para que pudiera utilizarse de manera segura desde varios hilos.
+
+Para ello se incorporó un mutex de lectura y escritura dentro de la clase SuffixTrie:
+
+mutable std::shared_mutex mutexArbol;
+
+Este mecanismo permite distinguir dos tipos de operaciones:
+
+Lectura: varios hilos pueden consultar el árbol simultáneamente, siempre que no exista una escritura activa.
+
+Escritura: un hilo obtiene acceso exclusivo cuando necesita insertar nodos o actualizar frecuencias.
+
+Se utilizó std::unique_lock para las operaciones de inserción:
+
+void SuffixTrie::insertarPalabra(
+    std::string_view palabra,
+    int id
+) {
+    std::unique_lock<std::shared_mutex> lock(mutexArbol);
+    insertarPalabraSinBloqueo(palabra, id);
+}
+
+De esta manera se evita que varios hilos modifiquen simultáneamente la estructura interna del árbol.
+
+## Implementación de la búsqueda segura
+
+En el código original se utilizaban las funciones navegarPrefijo() y recolectarCoincidencias() para encontrar las películas asociadas con una consulta.
+
+Para el segundo avance se incorporó buscarCoincidencias(), que agrupa ambas operaciones bajo un mismo bloqueo de lectura.
+
+std::unordered_map<int,int>
+SuffixTrie::buscarCoincidencias(
+    std::string_view termino
+) const {
+    std::unordered_map<int,int> resultado;
+
+    if (termino.empty())
+        return resultado;
+
+    std::shared_lock<std::shared_mutex> lock(mutexArbol);
+
+    recolectarSinBloqueo(
+        navegarPrefijoSinBloqueo(termino),
+        resultado
+    );
+
+    return resultado;
+}
+
+Esta modificación es importante porque el bloqueo permanece activo durante toda la búsqueda, desde la navegación hasta la recolección de coincidencias.
+
+La función devuelve un mapa con los identificadores de las películas encontradas y sus respectivas frecuencias.
+
+Pseudocódigo de búsqueda:
+
+Función buscarCoincidencias(termino):
+    resultado = Mapa vacío
+
+    Si termino está vacío:
+        Retornar resultado
+
+    Adquirir bloqueo compartido
+
+    nodo = navegarPrefijoSinBloqueo(termino)
+
+    Si nodo existe:
+        Recorrer sus descendientes mediante DFS
+        Acumular frecuencias por ID de película
+
+    Liberar bloqueo compartido
+
+    Retornar resultado
+
+Además, se utiliza una pila para recorrer los nodos mediante una búsqueda en profundidad (DFS) iterativa, evitando depender de una función recursiva para recolectar las coincidencias.
+
+## Construcción paralela del árbol
+
+Otra mejora del segundo avance fue implementar construirIndiceParalelo(), utilizando std::thread.
+
+Esta función distribuye las películas entre varios hilos, de manera que cada uno procesa un subconjunto de la base de datos.
+
+Esquema de funcionamiento:
+
+             Base de películas
+                     |
+             Dividir el trabajo
+                     |
+          +----------+----------+
+          |          |          |
+        Hilo 1     Hilo 2     Hilo 3
+          |          |          |
+      Películas   Películas  Películas
+         1-3         4-6        7-9
+          |          |          |
+          +----------+----------+
+                     |
+           Bloqueo de escritura
+             por cada película
+                     |
+                Suffix Trie
+                     |
+              Índice construido
+
+Cada hilo recorre las películas que le corresponden y utiliza un bloqueo exclusivo antes de insertar sus tokens.
+
+El bloqueo se realiza por película, en lugar de hacerlo individualmente por cada palabra, para reducir la cantidad de operaciones de sincronización.
+
+Al finalizar, el programa utiliza join() para esperar a que todos los hilos terminen.
+
+Es importante mencionar que, aunque las películas se distribuyen entre varios hilos, las modificaciones del árbol compartido siguen ejecutándose de manera exclusiva. Por ello, la implementación permite una indexación concurrente segura, pero no garantiza que sea más rápida que la secuencial.
 
 ## Patrones de Diseño (patrones.h / patrones.cpp)
 
